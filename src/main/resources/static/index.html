@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ArenaPick — Sign In</title>
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+<div class="auth-page">
+  <div class="auth-box">
+    <div class="auth-brand">
+      <div class="auth-logo">Arena<span class="accent">Pick</span></div>
+      <div class="auth-sub">Predict · Vote · Dominate</div>
+    </div>
+
+    <div id="alert" class="alert error"></div>
+
+    <form id="loginForm">
+      <div class="form-group">
+        <label class="form-label">Email</label>
+        <input type="email" id="email" class="form-input" placeholder="you@example.com" required>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Password</label>
+        <input type="password" id="password" class="form-input" placeholder="••••••••" required>
+      </div>
+      <button type="submit" class="btn btn-primary btn-block btn-lg" id="submitBtn">Enter the Arena</button>
+    </form>
+
+    <div class="auth-footer">
+      New here? <a href="/register.html">Create an account</a>
+    </div>
+  </div>
+</div>
+<script>
+  fetch('/api/auth/me').then(r => { if (r.ok) window.location.href = '/dashboard.html'; });
+
+  document.getElementById('loginForm').addEventListener('submit', async e => {
+    e.preventDefault();
+    const btn = document.getElementById('submitBtn');
+    const alertEl = document.getElementById('alert');
+    alertEl.className = 'alert error';
+    btn.disabled = true;
+    btn.textContent = 'Signing in…';
+
+    const res  = await fetch('/api/auth/login', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: document.getElementById('email').value, password: document.getElementById('password').value })
+    });
+    const data = await res.json();
+    if (res.ok) { window.location.href = '/dashboard.html'; return; }
+    alertEl.textContent = data.error || 'Login failed';
+    alertEl.className = 'alert error show';
+    btn.disabled = false;
+    btn.textContent = 'Enter the Arena';
+  });
+</script>
+</body>
+</html>

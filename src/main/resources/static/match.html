@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ArenaPick — Match</title>
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+
+<nav class="navbar">
+  <a class="nav-logo" href="/dashboard.html">Arena<span class="accent">Pick</span></a>
+  <div class="nav-center"></div>
+  <div class="nav-right">
+    <span class="nav-user">Signed in as <strong id="navUser">…</strong></span>
+    <a href="/dashboard.html" class="btn btn-ghost btn-sm">← Back</a>
+    <button class="btn btn-ghost btn-sm" id="logoutBtn">Sign Out</button>
+  </div>
+</nav>
+
+<div class="page">
+  <div id="heroArea" class="loading-area"><div class="spinner"></div>Loading match…</div>
+
+  <div id="predSection" class="section" style="display:none">
+    <div class="section-title">Community Predictions</div>
+
+    <div class="vote-grid">
+      <button class="vote-btn" id="voteC1" onclick="vote('CONTESTANT1')">
+        <div id="voteC1Name">—</div>
+        <span class="sub">Pick to win</span>
+      </button>
+      <button class="vote-btn" id="voteC2" onclick="vote('CONTESTANT2')">
+        <div id="voteC2Name">—</div>
+        <span class="sub">Pick to win</span>
+      </button>
+    </div>
+    <div class="vote-hint" id="voteHint"></div>
+
+    <div class="big-pred" id="bigPred">
+      <div class="big-pred-row">
+        <div class="big-pred-labels">
+          <span class="big-pred-name" id="predName1">—</span>
+          <span class="big-pred-pct neon" id="predPct1">0%</span>
+        </div>
+        <div class="big-bar"><div class="big-bar-fill neon" id="predBar1" style="width:0%"></div></div>
+      </div>
+      <div class="big-pred-row">
+        <div class="big-pred-labels">
+          <span class="big-pred-name" id="predName2">—</span>
+          <span class="big-pred-pct sky" id="predPct2">0%</span>
+        </div>
+        <div class="big-bar"><div class="big-bar-fill sky" id="predBar2" style="width:0%"></div></div>
+      </div>
+      <div class="pred-count" id="predCount"></div>
+    </div>
+  </div>
+
+  <div id="commentSection" class="section" style="display:none">
+    <div class="section-title">Discussion</div>
+
+    <div id="commentFormArea" class="comment-box">
+      <textarea id="commentInput" class="comment-textarea" placeholder="Share your analysis — who wins and why?"></textarea>
+      <div class="comment-box-footer">
+        <button class="btn btn-primary btn-sm" onclick="submitComment()">Post</button>
+      </div>
+    </div>
+    <div id="loginPrompt" class="login-prompt" style="display:none">
+      <a href="/">Sign in</a> to join the discussion.
+    </div>
+
+    <div class="comment-list" id="commentList">
+      <div class="loading-area"><div class="spinner"></div></div>
+    </div>
+  </div>
+</div>
+
+<script>
+const params  = new URLSearchParams(location.search);
+const matchId = params.get('id');
+if (!matchId) window.location.href = '/dashboard.html';
+
+const SPORT_CLASS = { FOOTBALL: 'football', UFC: 'ufc', TENNIS: 'tennis' };
+const SPORT_ICON  = { FOOTBALL: '⚽', UFC: '🥊', TENNIS: '🎾' };
+
+let currentUser = null;
+let matchData   = null;
+
+fetch('/api/auth/me').then(async r => {
+  if (r.ok) {
+    currentUser = await r.json();
+    document.getElementById('navUser').textContent = currentUser.username;
+  } else {
+    document.getElementById('navUser').textContent = 'Guest';
+    if (document.getElementById('commentFormArea'))
+      document.getElementById('commentFormArea').style.display = 'none';
+    if (document.getElementById('loginPrompt'))
+      document.getElementById('loginPrompt').style.display = 'block';
+  }
+});
+
+document.getElementById('logoutBtn').addEventListener('click', async () => {
+  await fetch('/api/auth/logout', { method: 'POST' });
+  window.location.href = '/';
+});
+
+// ── Form badges helper ──────────────────────────────────────
+function formBadgesLg(form) {
+  if (!form || !form.length) return '';
+  return form.map(r => `<span class="fb ${r.toLowerCase()}" style="width:20px;height:20px;font-size:11px">${r}</span>`).join('');
+}
+
+// ── Stat subtitle ───────────────────────────────────────────
+function statLine(s, sport) {
+  if (!s) return '';
+  if (sport === 'UFC')    return `${s.record || ''} · ${s.weightClass || ''}`;
+  if (sport === 'TENNIS') return `ATP #${s.ranking || '?'} · ${s.surface || ''}`;
+  return `${s.pos || ''} · ${s.league || ''}`;
+}
+
+// ── Load everything ─────────────────────────────────────────
+async function load() {
+  const [matchRes, statsRes, commentsRes] = await Promise.all([
+    fetch(`/api/matches/${matchId}`),
+    fetch(`/api/predictions/match/${matchId}`),
+    fetch(`/api/comments/match/${matchId}`),
+  ]);
+
+  if (!matchRes.ok) { window.location.href = '/dashboard.html'; return; }
+
+  matchData = await matchRes.json();
+  const stats    = await statsRes.json();
+  const comments = await commentsRes.json();
+
+  renderHero(matchData);
+  renderPred(matchData, stats);
+  renderComments(comments);
+
+  document.getElementById('predSection').style.display    = 'block';
+  document.getElementById('commentSection').style.display = 'block';
+}
+
+function renderHero(m) {
+  const sport    = (m.sport || '').toUpperCase();
+  const date     = new Date(m.scheduledAt);
+  const dateStr  = date.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+  const c1s      = m.c1Stats || {};
+  const c2s      = m.c2Stats || {};
+
+  document.title = `ArenaPick — ${m.contestant1} vs ${m.contestant2}`;
+
+  const liveTag = c1s.live ? `<span class="live-chip" style="font-size:.65rem"><span class="live-dot"></span>Live data</span>` : '';
+
+  document.getElementById('heroArea').outerHTML = `
+  <div class="match-hero">
+    <div class="hero-top">
+      <span class="sport-chip ${SPORT_CLASS[sport] || ''}">${SPORT_ICON[sport] || ''} ${sport}</span>
+      <span class="hero-date">📅 ${dateStr}</span>
+      ${liveTag}
+    </div>
+    <div class="hero-versus">
+      <div class="hero-team">
+        <div class="hero-name">${m.contestant1}</div>
+        <div class="hero-label">Contestant 1</div>
+        ${c1s.form ? `<div class="hero-form">${formBadgesLg(c1s.form)}</div>` : ''}
+        <div class="hero-meta">${statLine(c1s, sport)}</div>
+      </div>
+      <div class="hero-vs">
+        <div class="hero-vs-text">VS</div>
+      </div>
+      <div class="hero-team right">
+        <div class="hero-name">${m.contestant2}</div>
+        <div class="hero-label">Contestant 2</div>
+        ${c2s.form ? `<div class="hero-form">${formBadgesLg(c2s.form)}</div>` : ''}
+        <div class="hero-meta">${statLine(c2s, sport)}</div>
+      </div>
+    </div>
+  </div>`;
+}
+
+function renderPred(m, stats) {
+  document.getElementById('voteC1Name').textContent = m.contestant1;
+  document.getElementById('voteC2Name').textContent = m.contestant2;
+  document.getElementById('predName1').textContent  = m.contestant1;
+  document.getElementById('predName2').textContent  = m.contestant2;
+  updateStats(stats);
+
+  if (stats.userPrediction) {
+    markVote(stats.userPrediction, m);
+  }
+}
+
+function updateStats(stats) {
+  const c1p = stats.contestant1Percent ?? 0;
+  const c2p = stats.contestant2Percent ?? 0;
+  document.getElementById('predPct1').textContent = c1p + '%';
+  document.getElementById('predPct2').textContent = c2p + '%';
+  document.getElementById('predBar1').style.width = c1p + '%';
+  document.getElementById('predBar2').style.width = c2p + '%';
+  document.getElementById('predCount').textContent =
+    `${stats.total.toLocaleString()} prediction${stats.total !== 1 ? 's' : ''} cast`;
+}
+
+function markVote(winner, m) {
+  const c1btn = document.getElementById('voteC1');
+  const c2btn = document.getElementById('voteC2');
+  c1btn.className = 'vote-btn' + (winner === 'CONTESTANT1' ? ' selected' : '');
+  c2btn.className = 'vote-btn' + (winner === 'CONTESTANT2' ? ' selected-sky' : '');
+  const name = winner === 'CONTESTANT1' ? (m || matchData).contestant1 : (m || matchData).contestant2;
+  document.getElementById('voteHint').textContent = `✓ You picked ${name} — change your pick anytime`;
+}
+
+async function vote(contestant) {
+  if (!currentUser) { window.location.href = '/'; return; }
+  const res = await fetch('/api/predictions', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ matchId: parseInt(matchId), predictedWinner: contestant }),
+  });
+  if (res.ok) {
+    markVote(contestant, matchData);
+    const sr = await fetch(`/api/predictions/match/${matchId}`);
+    updateStats(await sr.json());
+  } else {
+    const d = await res.json();
+    if (res.status === 401) { window.location.href = '/'; return; }
+    alert(d.error || 'Vote failed');
+  }
+}
+
+function renderComments(comments) {
+  const list = document.getElementById('commentList');
+  if (!comments.length) {
+    list.innerHTML = '<div class="no-comments">No comments yet — be the first to share your analysis.</div>';
+    return;
+  }
+  list.innerHTML = comments.map(c => `
+    <div class="comment-item">
+      <div class="comment-header">
+        <span class="comment-user">@${c.username}</span>
+        <span class="comment-time">${timeAgo(c.createdAt)}</span>
+      </div>
+      <div class="comment-text">${esc(c.content)}</div>
+    </div>`).join('');
+}
+
+async function submitComment() {
+  if (!currentUser) { window.location.href = '/'; return; }
+  const content = document.getElementById('commentInput').value.trim();
+  if (!content) return;
+
+  const res = await fetch('/api/comments', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ matchId: parseInt(matchId), content }),
+  });
+  if (res.ok) {
+    document.getElementById('commentInput').value = '';
+    renderComments(await fetch(`/api/comments/match/${matchId}`).then(r => r.json()));
+  } else {
+    const d = await res.json();
+    alert(d.error || 'Failed to post');
+  }
+}
+
+function timeAgo(iso) {
+  const s = (Date.now() - new Date(iso)) / 1000;
+  if (s < 60)    return 'just now';
+  if (s < 3600)  return Math.floor(s / 60) + 'm ago';
+  if (s < 86400) return Math.floor(s / 3600) + 'h ago';
+  return Math.floor(s / 86400) + 'd ago';
+}
+
+function esc(s) {
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+load();
+</script>
+</body>
+</html>

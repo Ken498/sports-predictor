@@ -1,0 +1,22 @@
+# Node
+server/node_modules/
+server/npm-debug.log*
+
+# Java / Maven
+target/
+*.class
+*.jar
+*.war
+
+# IDE
+.idea/
+*.iml
+.vscode/
+*.swp
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Temp test files
+/tmp_*.json

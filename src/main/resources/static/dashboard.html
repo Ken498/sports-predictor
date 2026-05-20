@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ArenaPick — Dashboard</title>
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+
+<nav class="navbar">
+  <div class="nav-logo">Arena<span class="accent">Pick</span></div>
+
+  <div class="nav-center">
+    <button class="nav-link active" data-sport="">All Sports</button>
+    <button class="nav-link" data-sport="FOOTBALL">Football</button>
+    <button class="nav-link" data-sport="UFC">UFC</button>
+    <button class="nav-link" data-sport="TENNIS">Tennis</button>
+    <span class="live-chip"><span class="live-dot"></span>Live</span>
+  </div>
+
+  <div class="nav-right">
+    <span class="nav-user">Signed in as <strong id="navUser">…</strong></span>
+    <button class="btn btn-ghost btn-sm" id="logoutBtn">Sign Out</button>
+  </div>
+</nav>
+
+<div class="page">
+  <div class="page-header">
+    <h1>Upcoming Matches</h1>
+    <p>Pick your winners before the action starts</p>
+  </div>
+
+  <div class="sport-tabs" id="sportTabs">
+    <button class="sport-tab active" data-sport="">🏆 All Sports</button>
+    <button class="sport-tab" data-sport="FOOTBALL">⚽ Football</button>
+    <button class="sport-tab" data-sport="UFC">🥊 UFC</button>
+    <button class="sport-tab" data-sport="TENNIS">🎾 Tennis</button>
+  </div>
+
+  <div id="matchesGrid">
+    <div class="loading-area"><div class="spinner"></div>Loading matches…</div>
+  </div>
+</div>
+
+<script>
+const SPORT_CLASS = { FOOTBALL: 'football', UFC: 'ufc', TENNIS: 'tennis' };
+const SPORT_ICON  = { FOOTBALL: '⚽', UFC: '🥊', TENNIS: '🎾' };
+
+// Auth guard
+fetch('/api/auth/me').then(async r => {
+  if (!r.ok) return window.location.href = '/';
+  const u = await r.json();
+  document.getElementById('navUser').textContent = u.username;
+});
+
+document.getElementById('logoutBtn').addEventListener('click', async () => {
+  await fetch('/api/auth/logout', { method: 'POST' });
+  window.location.href = '/';
+});
+
+// Tab switching
+let currentSport = '';
+document.querySelectorAll('[data-sport]').forEach(el => {
+  el.addEventListener('click', () => {
+    document.querySelectorAll('[data-sport]').forEach(t => t.classList.remove('active'));
+    // activate both nav-link and sport-tab for the same sport
+    document.querySelectorAll(`[data-sport="${el.dataset.sport}"]`).forEach(t => t.classList.add('active'));
+    currentSport = el.dataset.sport;
+    loadMatches(currentSport);
+  });
+});
+
+async function loadMatches(sport = '') {
+  const grid = document.getElementById('matchesGrid');
+  grid.innerHTML = '<div class="loading-area"><div class="spinner"></div>Loading…</div>';
+
+  const [matchesRes, statsMap] = await Promise.all([
+    fetch(sport ? `/api/matches?sport=${sport}` : '/api/matches').then(r => r.json()),
+    fetchPredStats(),
+  ]);
+
+  if (!matchesRes.length) {
+    grid.innerHTML = '<div class="loading-area">No matches found.</div>';
+    return;
+  }
+
+  grid.innerHTML = `<div class="matches-grid">${matchesRes.map(m => renderCard(m, statsMap[m.id])).join('')}</div>`;
+}
+
+async function fetchPredStats() {
+  try {
+    const res = await fetch('/api/predictions/batch', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ matchIds: [1,2,3,4,5,6,7] }),
+    });
+    return await res.json();
+  } catch { return {}; }
+}
+
+function formBadges(form) {
+  if (!form || !form.length) return '';
+  return form.map(r => `<span class="fb ${r.toLowerCase()}">${r}</span>`).join('');
+}
+
+function renderCard(m, pred) {
+  const sport   = (m.sport || '').toUpperCase();
+  const date    = new Date(m.scheduledAt);
+  const dateStr = date.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+
+  const c1s = m.c1Stats || {};
+  const c2s = m.c2Stats || {};
+
+  // Stats subtitle
+  const c1Sub = c1s.record || (c1s.ranking ? `ATP #${c1s.ranking}` : (c1s.pos ? `${c1s.pos} · ${c1s.league || ''}` : ''));
+  const c2Sub = c2s.record || (c2s.ranking ? `ATP #${c2s.ranking}` : (c2s.pos ? `${c2s.pos} · ${c2s.league || ''}` : ''));
+
+  const c1Pct  = pred?.contestant1Percent ?? 0;
+  const c2Pct  = pred?.contestant2Percent ?? 0;
+  const total  = pred?.total ?? 0;
+  const voted  = pred?.userPrediction;
+
+  const liveTag = c1s.live ? '· Live data' : '';
+
+  return `
+  <a class="match-card" href="/match.html?id=${m.id}">
+    <div class="card-top">
+      <span class="sport-chip ${SPORT_CLASS[sport] || ''}">${SPORT_ICON[sport] || ''} ${sport}</span>
+      <span class="match-date">${dateStr}</span>
+    </div>
+
+    <div class="teams-row">
+      <div class="team">
+        <span class="team-name">${m.contestant1}</span>
+        ${c1Sub ? `<span class="team-meta">${c1Sub} ${liveTag}</span>` : ''}
+        ${c1s.form ? `<div class="team-form">${formBadges(c1s.form)}</div>` : ''}
+      </div>
+      <div class="vs-col"><span class="vs-label">VS</span></div>
+      <div class="team right">
+        <span class="team-name">${m.contestant2}</span>
+        ${c2Sub ? `<span class="team-meta">${c2Sub}</span>` : ''}
+        ${c2s.form ? `<div class="team-form">${formBadges(c2s.form)}</div>` : ''}
+      </div>
+    </div>
+
+    <div class="pred-split">
+      <div class="pred-split-nums">
+        <span class="pred-pct-neon">${c1Pct}%</span>
+        <span class="pred-total">${total ? `${total.toLocaleString()} vote${total !== 1 ? 's' : ''}` : 'No votes yet'}</span>
+        <span class="pred-pct-sky">${c2Pct}%</span>
+      </div>
+      <div class="pred-bar">
+        <div class="pred-bar-neon" style="width:${c1Pct}%"></div>
+        <div class="pred-bar-sky"  style="width:${c2Pct}%"></div>
+      </div>
+    </div>
+
+    <div class="card-bottom">
+      <span>${voted ? `✓ You picked ${voted === 'CONTESTANT1' ? m.contestant1 : m.contestant2}` : 'Cast your prediction'}</span>
+      <span class="card-cta">View &amp; Vote →</span>
+    </div>
+  </a>`;
+}
+
+loadMatches();
+</script>
+</body>
+</html>
