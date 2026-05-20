@@ -587,6 +587,81 @@ a:hover { color: var(--neon-dim); }
 }
 @keyframes spin { to { transform: rotate(360deg); } }
 
+/* ── Leaderboard ──────────────────────────────────────────── */
+.lb-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: .88rem;
+}
+.lb-table th {
+  font-family: var(--font-h);
+  font-size: .65rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .09em;
+  color: var(--muted);
+  padding: .6rem 1rem;
+  text-align: left;
+  border-bottom: 1px solid var(--border-dim);
+}
+.lb-table th.r, .lb-table td.r { text-align: right; }
+.lb-table td {
+  padding: .75rem 1rem;
+  border-bottom: 1px solid rgba(69,70,77,.4);
+  color: var(--text-variant);
+  vertical-align: middle;
+}
+.lb-table tbody tr { transition: background .12s; }
+.lb-table tbody tr:hover { background: var(--surface-mid); }
+.lb-table tbody tr:last-child td { border-bottom: none; }
+
+.lb-me td { background: rgba(210,240,0,.05); color: var(--text); }
+.lb-me td:first-child { border-left: 2px solid var(--neon); }
+
+.lb-rank {
+  font-family: var(--font-h);
+  font-weight: 800;
+  font-size: .9rem;
+  width: 3rem;
+}
+.medal { font-size: 1.1rem; }
+
+.lb-username {
+  font-family: var(--font-h);
+  font-weight: 700;
+  color: var(--text);
+  font-size: .92rem;
+}
+.lb-me .lb-username { color: var(--neon); }
+
+.lb-score {
+  font-family: var(--font-h);
+  font-weight: 800;
+  font-size: 1rem;
+  color: var(--neon);
+}
+
+.acc-wrap { display: flex; align-items: center; gap: .6rem; min-width: 100px; }
+.acc-bar  { flex: 1; height: 4px; background: var(--surface-high); border-radius: 0; overflow: hidden; }
+.acc-fill { height: 100%; background: var(--neon); transition: width .6s ease; }
+.acc-pct  { font-family: var(--font-h); font-weight: 700; font-size: .82rem; color: var(--text); min-width: 32px; text-align: right; }
+
+.lb-stat { color: var(--muted); font-size: .8rem; }
+.lb-stat strong { color: var(--text-variant); }
+
+.lb-legend {
+  display: flex;
+  gap: 1.5rem;
+  flex-wrap: wrap;
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--border-dim);
+  font-size: .75rem;
+  color: var(--muted);
+}
+.lb-legend span { display: flex; align-items: center; gap: .35rem; }
+.dot-neon { width: 8px; height: 8px; background: var(--neon); border-radius: 0; display: inline-block; }
+
 /* ── Responsive ───────────────────────────────────────────── */
 @media (max-width: 768px) {
   .navbar  { padding: 0 1rem; }

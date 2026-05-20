@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ArenaPick — Leaderboard</title>
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+
+<nav class="navbar">
+  <a class="nav-logo" href="/dashboard.html">Arena<span class="accent">Pick</span></a>
+  <div class="nav-center"></div>
+  <div class="nav-right">
+    <span class="nav-user">Signed in as <strong id="navUser">…</strong></span>
+    <a href="/dashboard.html" class="btn btn-ghost btn-sm">← Back</a>
+    <button class="btn btn-ghost btn-sm" id="logoutBtn">Sign Out</button>
+  </div>
+</nav>
+
+<div class="page">
+  <div class="page-header">
+    <h1>Leaderboard</h1>
+    <p>Top predictors ranked by score — 10 pts per correct pick + 1 pt per comment</p>
+  </div>
+
+  <div id="lbSection" class="section">
+    <div class="loading-area"><div class="spinner"></div>Loading…</div>
+  </div>
+</div>
+
+<script>
+let currentUserId = null;
+
+fetch('/api/auth/me').then(async r => {
+  if (r.ok) {
+    const u = await r.json();
+    currentUserId = u.id;
+    document.getElementById('navUser').textContent = u.username;
+  } else {
+    document.getElementById('navUser').textContent = 'Guest';
+  }
+});
+
+document.getElementById('logoutBtn').addEventListener('click', async () => {
+  await fetch('/api/auth/logout', { method: 'POST' });
+  window.location.href = '/';
+});
+
+const MEDALS = { 1: '🥇', 2: '🥈', 3: '🥉' };
+
+async function load() {
+  const res = await fetch('/api/leaderboard');
+  if (!res.ok) {
+    document.getElementById('lbSection').innerHTML =
+      '<div class="loading-area">Failed to load leaderboard.</div>';
+    return;
+  }
+  const data = await res.json();
+  currentUserId = currentUserId || data.currentUserId;
+  render(data.leaderboard);
+}
+
+function render(rows) {
+  if (!rows.length) {
+    document.getElementById('lbSection').innerHTML =
+      '<div class="loading-area">No completed matches yet — check back soon.</div>';
+    return;
+  }
+
+  const isMe = (r) => r.userId === currentUserId;
+
+  const html = `
+    <div class="section-title">Rankings</div>
+    <table class="lb-table">
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Predictor</th>
+          <th class="r">Score</th>
+          <th>Accuracy</th>
+          <th class="r">Correct / Total</th>
+          <th class="r">Comments</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${rows.map(r => `
+        <tr class="${isMe(r) ? 'lb-me' : ''}">
+          <td class="lb-rank">${MEDALS[r.rank] ? `<span class="medal">${MEDALS[r.rank]}</span>` : r.rank}</td>
+          <td>
+            <span class="lb-username">${esc(r.username)}${isMe(r) ? ' <span style="font-size:.7rem;color:var(--muted);font-family:var(--font-b);font-weight:400">(you)</span>' : ''}</span>
+          </td>
+          <td class="lb-score r">${r.score}</td>
+          <td>
+            <div class="acc-wrap">
+              <div class="acc-bar"><div class="acc-fill" style="width:${r.accuracy}%"></div></div>
+              <span class="acc-pct">${r.accuracy}%</span>
+            </div>
+          </td>
+          <td class="r lb-stat"><strong>${r.correct}</strong> / ${r.total}</td>
+          <td class="r lb-stat">${r.comments}</td>
+        </tr>`).join('')}
+      </tbody>
+    </table>
+    <div class="lb-legend">
+      <span><span class="dot-neon"></span> Score = 10 pts × correct predictions + comments posted</span>
+      <span>Based on ${rows.reduce((s, r) => Math.max(s, r.total), 0)} completed match${rows[0].total !== 1 ? 'es' : ''}</span>
+    </div>`;
+
+  document.getElementById('lbSection').innerHTML = html;
+}
+
+function esc(s) {
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+load();
+</script>
+</body>
+</html>

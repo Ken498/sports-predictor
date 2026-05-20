@@ -35,6 +35,11 @@ const STATIC_STATS = {
   'Carlos Alcaraz':   { form: ['W','W','W','W','W'], ranking: 1,  surface: 'Clay Specialist', sport: 'TENNIS' },
   'Iga Swiatek':      { form: ['W','W','W','W','D'], ranking: 1,  surface: 'Clay Specialist', sport: 'TENNIS' },
   'Aryna Sabalenka':  { form: ['W','L','W','W','W'], ranking: 2,  surface: 'Hard Court',  sport: 'TENNIS' },
+  'Liverpool':        { form: ['W','W','D','W','W'], pos: '3rd', league: 'Premier League', sport: 'FOOTBALL' },
+  'Chelsea':          { form: ['L','W','W','L','D'], pos: '6th', league: 'Premier League', sport: 'FOOTBALL' },
+  'Alex Pereira':     { form: ['W','W','W','W','W'], record: '12-2-0', weightClass: 'Light Heavyweight', sport: 'UFC' },
+  'Jiri Prochazka':   { form: ['W','L','W','L','W'], record: '30-4-1', weightClass: 'Light Heavyweight', sport: 'UFC' },
+  'Jannik Sinner':    { form: ['W','W','W','W','D'], ranking: 2,  surface: 'Hard Court',  sport: 'TENNIS' },
 };
 
 // Live stats cache — upgraded by TheSportsDB at startup
@@ -55,7 +60,10 @@ const db = {
     { id: 4, sport: 'UFC',      contestant1: 'Jon Jones',        contestant2: 'Stipe Miocic',      scheduledAt: d(4),  status: 'UPCOMING' },
     { id: 5, sport: 'UFC',      contestant1: 'Islam Makhachev',  contestant2: 'Dustin Poirier',    scheduledAt: d(7),  status: 'UPCOMING' },
     { id: 6, sport: 'TENNIS',   contestant1: 'Novak Djokovic',   contestant2: 'Carlos Alcaraz',    scheduledAt: d(1),  status: 'UPCOMING' },
-    { id: 7, sport: 'TENNIS',   contestant1: 'Iga Swiatek',      contestant2: 'Aryna Sabalenka',   scheduledAt: d(6),  status: 'UPCOMING' },
+    { id: 7,  sport: 'TENNIS',   contestant1: 'Iga Swiatek',      contestant2: 'Aryna Sabalenka',   scheduledAt: d(6),   status: 'UPCOMING'   },
+    { id: 10, sport: 'FOOTBALL', contestant1: 'Liverpool',         contestant2: 'Chelsea',           scheduledAt: d(-7),  status: 'COMPLETED', result: 'CONTESTANT1' },
+    { id: 11, sport: 'UFC',      contestant1: 'Alex Pereira',      contestant2: 'Jiri Prochazka',    scheduledAt: d(-5),  status: 'COMPLETED', result: 'CONTESTANT1' },
+    { id: 12, sport: 'TENNIS',   contestant1: 'Carlos Alcaraz',    contestant2: 'Jannik Sinner',     scheduledAt: d(-3),  status: 'COMPLETED', result: 'CONTESTANT2' },
   ],
 
   users: [
@@ -144,6 +152,35 @@ const db = {
     { id: 124, userId: 3,  matchId: 7, predictedWinner: 'CONTESTANT1' },
     { id: 125, userId: 4,  matchId: 7, predictedWinner: 'CONTESTANT2' },
     { id: 126, userId: 5,  matchId: 7, predictedWinner: 'CONTESTANT1' },
+    // Match 10: Liverpool vs Chelsea — result: CONTESTANT1 (Liverpool wins)
+    { id: 500, userId: 1,  matchId: 10, predictedWinner: 'CONTESTANT1' },  // correct
+    { id: 501, userId: 2,  matchId: 10, predictedWinner: 'CONTESTANT1' },  // correct
+    { id: 502, userId: 3,  matchId: 10, predictedWinner: 'CONTESTANT1' },  // correct
+    { id: 503, userId: 4,  matchId: 10, predictedWinner: 'CONTESTANT2' },  // wrong
+    { id: 504, userId: 5,  matchId: 10, predictedWinner: 'CONTESTANT1' },  // correct
+    { id: 505, userId: 6,  matchId: 10, predictedWinner: 'CONTESTANT2' },  // wrong
+    { id: 506, userId: 9,  matchId: 10, predictedWinner: 'CONTESTANT1' },  // correct
+    { id: 507, userId: 11, matchId: 10, predictedWinner: 'CONTESTANT1' },  // correct
+    { id: 508, userId: 12, matchId: 10, predictedWinner: 'CONTESTANT2' },  // wrong
+    // Match 11: Alex Pereira vs Jiri Prochazka — result: CONTESTANT1 (Pereira wins)
+    { id: 510, userId: 1,  matchId: 11, predictedWinner: 'CONTESTANT2' },  // wrong
+    { id: 511, userId: 2,  matchId: 11, predictedWinner: 'CONTESTANT1' },  // correct
+    { id: 512, userId: 5,  matchId: 11, predictedWinner: 'CONTESTANT1' },  // correct
+    { id: 513, userId: 7,  matchId: 11, predictedWinner: 'CONTESTANT1' },  // correct
+    { id: 514, userId: 8,  matchId: 11, predictedWinner: 'CONTESTANT2' },  // wrong
+    { id: 515, userId: 9,  matchId: 11, predictedWinner: 'CONTESTANT2' },  // wrong
+    { id: 516, userId: 11, matchId: 11, predictedWinner: 'CONTESTANT1' },  // correct
+    { id: 517, userId: 13, matchId: 11, predictedWinner: 'CONTESTANT1' },  // correct
+    // Match 12: Carlos Alcaraz vs Jannik Sinner — result: CONTESTANT2 (Sinner wins)
+    { id: 520, userId: 2,  matchId: 12, predictedWinner: 'CONTESTANT2' },  // correct
+    { id: 521, userId: 3,  matchId: 12, predictedWinner: 'CONTESTANT1' },  // wrong
+    { id: 522, userId: 5,  matchId: 12, predictedWinner: 'CONTESTANT1' },  // wrong
+    { id: 523, userId: 6,  matchId: 12, predictedWinner: 'CONTESTANT1' },  // wrong
+    { id: 524, userId: 7,  matchId: 12, predictedWinner: 'CONTESTANT1' },  // wrong
+    { id: 525, userId: 9,  matchId: 12, predictedWinner: 'CONTESTANT2' },  // correct
+    { id: 526, userId: 10, matchId: 12, predictedWinner: 'CONTESTANT2' },  // correct
+    { id: 527, userId: 11, matchId: 12, predictedWinner: 'CONTESTANT2' },  // correct
+    { id: 528, userId: 14, matchId: 12, predictedWinner: 'CONTESTANT2' },  // correct
   ],
 
   comments: [
@@ -192,7 +229,7 @@ const db = {
   ],
 };
 db.seq.comments = 200;
-db.seq.predictions = 200;
+db.seq.predictions = 600;
 
 // ── TheSportsDB live fetch (background, enhances static stats) ──
 const SPORTSDB_NAMES = {
@@ -430,6 +467,48 @@ app.get('/api/comments/match/:matchId', (req, res) => {
     .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
     .map(({ id, username, content, createdAt }) => ({ id, username, content, createdAt }));
   res.json(result);
+});
+
+// ── Leaderboard ────────────────────────────────────────────
+app.get('/api/leaderboard', (req, res) => {
+  const completedMatches = db.matches.filter(m => m.status === 'COMPLETED' && m.result);
+
+  const stats = {};
+  for (const user of db.users) {
+    stats[user.id] = {
+      userId: user.id,
+      username: user.username,
+      correct: 0,
+      total: 0,
+      comments: db.comments.filter(c => c.userId === user.id).length,
+    };
+  }
+
+  for (const match of completedMatches) {
+    const preds = db.predictions.filter(p => p.matchId === match.id);
+    for (const pred of preds) {
+      if (stats[pred.userId]) {
+        stats[pred.userId].total++;
+        if (pred.predictedWinner === match.result) stats[pred.userId].correct++;
+      }
+    }
+  }
+
+  const leaderboard = Object.values(stats)
+    .filter(s => s.total > 0)
+    .map(s => ({
+      ...s,
+      accuracy: Math.round(s.correct * 100 / s.total),
+      score: s.correct * 10 + s.comments,
+    }))
+    .sort((a, b) => {
+      if (b.score !== a.score) return b.score - a.score;
+      if (b.accuracy !== a.accuracy) return b.accuracy - a.accuracy;
+      return a.username.localeCompare(b.username);
+    })
+    .map((s, i) => ({ ...s, rank: i + 1 }));
+
+  res.json({ leaderboard, currentUserId: req.session.userId || null });
 });
 
 // ── Fallback SPA ──────────────────────────────────────────
